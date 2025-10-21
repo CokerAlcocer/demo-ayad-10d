@@ -1,63 +1,58 @@
 pipeline {
     agent any
 
-    environment {
-        PATH = '/usr/local/bin:${env.PATH}'
-    }
-
     stages {
-        // Etapa para detener los contenedores de docker
-        stage('Parando los servicios') {
+        // Paramos todos los servicios creados con el docker-compose.yml
+        stage('Stopping services') {
             steps {
                 sh '''
-                    docker compose -p demo-d down || true
+                    docker compose -p demo down || true
                 '''
-            }
+            } 
         }
 
-        // Etapa para eliminar las imágenes viejas
-        stage('Eliminando las imágenes anteriores') {
+        // Eliminamos todas las imagenes creadas con el docker-compose.yml
+        stage('Deleting old images') {
             steps {
                 sh '''
-                    IMAGES=$(docker images --filter "label=com.docker.compose.project=demo-d" -q)
+                    IMAGES=$(docker images --filter "label=com.docker.compose.project=demo" -q)
                     if [ -n "$IMAGES" ]; then
                         docker rmi -f $IMAGES
                     else
-                        echo 'No hay imágenes por borrar...'
+                        echo "No hay imágenes para borrar"
                     fi
                 '''
-            }
+            } 
         }
 
-        // Etapa para bajar la actualización del repo
-        stage('Bajando la actualización del repo') {
+        // A raiz del job creado en Jenkins, le decimos que de la configuración de git jale cambios
+        stage('Pulling update') {
             steps {
                 checkout scm
             }
         }
 
-        // Etapa para construir y desplegar
-        stage('Construyendo y desplegando') {
+        // Construimos nuevamente todos los servicios
+        stage('Build and Deploy') {
             steps {
                 sh '''
                     docker compose up --build -d
                 '''
-            }
+            } 
         }
     }
 
-    // Post actions
     post {
         success {
-            echo 'Pipeline completado exitosamente'
+            echo '✅ Pipeline completado con éxito'
         }
 
         failure {
-            echo 'Ocurrió un error durante la ejecución del pipeline'
+            echo '❌ Hubo un error en el pipeline'
         }
 
         always {
-            echo 'Ejecución del pipeline finalizada'
+            echo '🔄 Pipeline terminado'
         }
     }
 }
